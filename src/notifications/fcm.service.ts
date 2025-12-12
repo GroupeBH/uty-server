@@ -33,6 +33,8 @@ export class FcmService {
     if (!res.ok) {
       const text = await res.text();
       this.logger.error(`FCM send failed: ${res.status} ${text}`);
+    } else {
+      this.logger.log('FCM send ok');
     }
   }
 }

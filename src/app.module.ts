@@ -18,6 +18,7 @@ import { ConfigModule } from './config/config.module';
 import { DatabaseModule } from './database/database.module';
 import { RedisModule } from './cache/redis.module';
 import { S3Module } from './media/s3.module';
+import { ShopsModule } from './shops/shops.module';
 
 @Module({
   imports: [
@@ -38,6 +39,7 @@ import { S3Module } from './media/s3.module';
     RealtimeModule,
     SearchModule,
     S3Module,
+    ShopsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

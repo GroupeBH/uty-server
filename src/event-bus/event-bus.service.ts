@@ -1,7 +1,16 @@
 import { Inject, Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { connect, AmqpConnectionManager, ChannelWrapper } from 'amqp-connection-manager';
+import { randomUUID } from 'node:crypto';
 import { AppEvent } from './events';
+
+export type EventEnvelope<TPayload = unknown> = {
+  id: string;
+  event: AppEvent;
+  version: number;
+  occurredAt: string;
+  data: TPayload;
+};
 
 @Injectable()
 export class EventBusService implements OnModuleInit, OnModuleDestroy {
@@ -28,18 +37,25 @@ export class EventBusService implements OnModuleInit, OnModuleDestroy {
     await this.connection?.close();
   }
 
-  async emit<TPayload = unknown>(event: AppEvent, payload: TPayload): Promise<void> {
+  async emit<TPayload = unknown>(event: AppEvent, payload: TPayload, version = 1): Promise<void> {
     if (!this.channel) {
       this.logger.warn(`Emit skipped, channel not ready for event ${event}`);
       return;
     }
-    await this.channel.publish('uty.events', event, payload);
-    this.logger.debug(`Emit event ${event}`, payload as Record<string, unknown>);
+    const envelope: EventEnvelope<TPayload> = {
+      id: randomUUID(),
+      event,
+      version,
+      occurredAt: new Date().toISOString(),
+      data: payload,
+    };
+    await this.channel.publish('uty.events', event, envelope);
+    this.logger.debug(`Emit event ${event}`, envelope as Record<string, unknown>);
   }
 
   subscribe<TPayload = unknown>(
     event: AppEvent,
-    handler: (payload: TPayload) => Promise<void> | void,
+    handler: (payload: TPayload, envelope: EventEnvelope<TPayload>) => Promise<void> | void,
   ): void {
     if (!this.channel) {
       this.logger.warn(`Subscribe skipped, channel not ready for event ${event}`);
@@ -54,9 +70,9 @@ export class EventBusService implements OnModuleInit, OnModuleDestroy {
           `uty.${event}`,
           async (msg) => {
             if (!msg) return;
-            const payload = JSON.parse(msg.content.toString()) as TPayload;
+            const envelope = JSON.parse(msg.content.toString()) as EventEnvelope<TPayload>;
             try {
-              await handler(payload);
+              await handler(envelope.data, envelope);
               ch.ack(msg);
             } catch (err) {
               this.logger.error(`Handler error for ${event}`, err as Error);

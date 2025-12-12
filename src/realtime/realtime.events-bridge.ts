@@ -1,4 +1,4 @@
-import { Injectable, OnModuleInit } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { RealtimeGateway } from './realtime.gateway';
 import { EventBusService } from '../event-bus/event-bus.service';
 import { EVENTS } from '../event-bus/events';
@@ -9,6 +9,8 @@ export class RealtimeEventsBridge implements OnModuleInit {
     private readonly gateway: RealtimeGateway,
     private readonly eventBus: EventBusService,
   ) {}
+
+  private readonly logger = new Logger(RealtimeEventsBridge.name);
 
   onModuleInit(): void {
     const forward = (event: string) => (payload: unknown) =>
@@ -26,6 +28,7 @@ export class RealtimeEventsBridge implements OnModuleInit {
       forward(EVENTS.deliveryLocationUpdated),
     );
     this.eventBus.subscribe(EVENTS.deliveryAssigned, forward(EVENTS.deliveryAssigned));
+    this.logger.log('Realtime bridge subscriptions registered');
   }
 }
 
